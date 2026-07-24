@@ -23,13 +23,15 @@ jobs:
         with:
           packages: 'platforms;android-34 build-tools;34.0.0'
 
-      - name: Download Xposed API 89
+      - name: Download Xposed API
         run: |
           mkdir -p libs/compile_only
-          curl -L --connect-timeout 30 --max-time 120 -o libs/compile_only/api-89.jar \
+          # API 89 is backward compatible with API 86 (xposedminversion=86)
+          curl -L --connect-timeout 30 --max-time 120 \
+            -o libs/compile_only/api.jar \
             "https://raw.githubusercontent.com/bywhat/XposedBridgeApi/main/XposedBridgeAPI-89.jar"
           ls -la libs/compile_only/
-          file libs/compile_only/api-89.jar
+          file libs/compile_only/api.jar
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4

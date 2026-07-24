@@ -1,105 +1,116 @@
 package com.devicefaker.hooks
 
 import com.devicefaker.HookInit
+import com.devicefaker.model.SpoofConfig
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedHelpers
 import de.robv.android.xposed.callbacks.XC_LoadPackage
 
 /**
- * Hook 3: 系统属性伪装
- * - SystemProperties.get() → 序列号/CPU 型号
- * - Settings.Secure.getString() → Android ID
- * - OAID/AAID 相关
+ * Hook 2: 系统属性 & Android ID 伪装
+ * 覆盖: SystemProperties.get(), Settings.Secure.getString(), OAID/AAID
  */
 object SystemPropertyHook {
 
-    private val spoofedProps = mapOf(
-        "ro.serialno" to { HookInit.currentProfile.serialNumber },
-        "ro.boot.serialno" to { HookInit.currentProfile.serialNumber },
-        "ro.product.model" to { HookInit.currentProfile.phoneModel },
-        "ro.product.brand" to { HookInit.currentProfile.phoneBrand },
-        "ro.product.manufacturer" to { HookInit.currentProfile.phoneManufacturer },
-        "ro.product.device" to { HookInit.currentProfile.phoneDevice },
-        "ro.product.name" to { HookInit.currentProfile.phoneProduct },
-        "ro.hardware" to { HookInit.currentProfile.phoneHardware },
-        "ro.board.platform" to { "lahaina" },
-        "ro.chipname" to { HookInit.currentProfile.cpuModel },
-        "ro.product.cpu.abi" to { HookInit.currentProfile.cpuArch },
-        "ro.product.cpu.abilist" to { HookInit.currentProfile.cpuArch },
-        "ro.product.cpu.abilist64" to { HookInit.currentProfile.cpuArch }
-    )
-
-    fun hook(lpparam: XC_LoadPackage.LoadPackageParam) {
+    fun hook(lpparam: XC_LoadPackage.LoadPackageParam, cfg: SpoofConfig) {
         val p = HookInit.currentProfile
 
-        // === SystemProperties.get() ===
+        hookSystemProperties(lpparam, cfg, p)
+        hookAndroidId(lpparam, cfg, p)
+        hookOaid(lpparam, cfg, p)
+        hookCpuInfo(lpparam, cfg, p)
+
+        HookInit.log("✓ SystemPropertyHook 完成")
+    }
+
+    // ===== SystemProperties.get() =====
+    private fun hookSystemProperties(lpparam: XC_LoadPackage.LoadPackageParam, cfg: SpoofConfig, p: com.devicefaker.model.DeviceProfile) {
+        val spoofMap = buildMap {
+            if (cfg.spoofSerial) {
+                put("ro.serialno", p.serialNumber)
+                put("ro.boot.serialno", p.serialNumber)
+            }
+            if (cfg.spoofPhoneModel) {
+                put("ro.product.model", p.phoneModel)
+                put("ro.product.brand", p.phoneBrand)
+                put("ro.product.manufacturer", p.phoneManufacturer)
+                put("ro.product.device", p.phoneDevice)
+                put("ro.product.name", p.phoneProduct)
+                put("ro.product.board", p.phoneDevice)
+                put("ro.hardware", p.phoneHardware)
+                put("ro.build.fingerprint", p.phoneFingerprint)
+                put("ro.build.description", "${p.phoneDevice}-user 14 UP1A.231005.007 release-keys")
+            }
+            if (cfg.spoofCpuModel) {
+                put("ro.board.platform", "lahaina")
+                put("ro.chipname", p.cpuModel)
+                put("ro.product.cpu.abi", p.cpuArch)
+                put("ro.product.cpu.abilist", p.cpuAbiList)
+                put("ro.product.cpu.abilist32", p.cpuAbiList32)
+                put("ro.product.cpu.abilist64", p.cpuArch)
+            }
+        }
+
         try {
+            // SystemProperties.get(key)
             XposedHelpers.findAndHookMethod(
-                "android.os.SystemProperties",
-                lpparam.classLoader,
-                "get",
-                String::class.java,
+                "android.os.SystemProperties", lpparam.classLoader,
+                "get", String::class.java,
                 object : XC_MethodHook() {
                     override fun afterHookedMethod(param: MethodHookParam) {
                         val key = param.args[0] as? String ?: return
-                        spoofedProps[key]?.let { generator ->
-                            val newValue = generator()
-                            param.result = newValue
-                            HookInit.log("  [Hook] SystemProperties.get($key) → $newValue")
+                        spoofMap[key]?.let { newVal ->
+                            param.result = newVal
                         }
                     }
                 }
             )
 
-            // SystemProperties.get(key, default)
+            // SystemProperties.get(key, def)
             XposedHelpers.findAndHookMethod(
-                "android.os.SystemProperties",
-                lpparam.classLoader,
-                "get",
-                String::class.java,
-                String::class.java,
+                "android.os.SystemProperties", lpparam.classLoader,
+                "get", String::class.java, String::class.java,
                 object : XC_MethodHook() {
                     override fun afterHookedMethod(param: MethodHookParam) {
                         val key = param.args[0] as? String ?: return
-                        spoofedProps[key]?.let { generator ->
-                            param.result = generator()
+                        spoofMap[key]?.let { newVal ->
+                            param.result = newVal
                         }
                     }
                 }
             )
         } catch (t: Throwable) {
-            HookInit.log("⚠ SystemProperties Hook 失败: ${t.message}")
+            HookInit.log("⚠ SystemProperties: ${t.message}")
         }
+    }
 
-        // === Settings.Secure.getString → Android ID ===
+    // ===== Settings.Secure Android ID =====
+    private fun hookAndroidId(lpparam: XC_LoadPackage.LoadPackageParam, cfg: SpoofConfig, p: com.devicefaker.model.DeviceProfile) {
+        if (!cfg.spoofAndroidId) return
+
         try {
             XposedHelpers.findAndHookMethod(
-                "android.provider.Settings.Secure",
-                lpparam.classLoader,
+                "android.provider.Settings.Secure", lpparam.classLoader,
                 "getString",
                 android.content.ContentResolver::class.java,
                 String::class.java,
                 object : XC_MethodHook() {
                     override fun afterHookedMethod(param: MethodHookParam) {
-                        val name = param.args[1] as? String ?: return
-                        if (name == "android_id") {
+                        if (param.args[1] == "android_id") {
                             param.result = p.androidId
-                            HookInit.log("  [Hook] Settings.Secure.getString(android_id) → ${p.androidId}")
                         }
                     }
                 }
             )
         } catch (t: Throwable) {
-            HookInit.log("⚠ Android ID Hook 失败: ${t.message}")
+            HookInit.log("⚠ Android ID: ${t.message}")
         }
-
-        // === OAID/AAID 拦截 ===
-        hookOaid(lpparam, p)
-
-        HookInit.log("✓ SystemProperties & Android ID 伪装完成")
     }
 
-    private fun hookOaid(lpparam: XC_LoadPackage.LoadPackageParam, p: com.devicefaker.model.DeviceProfile) {
+    // ===== OAID/AAID 各家厂商 SDK =====
+    private fun hookOaid(lpparam: XC_LoadPackage.LoadPackageParam, cfg: SpoofConfig, p: com.devicefaker.model.DeviceProfile) {
+        if (!cfg.spoofOaid) return
+
         // 华为 OAID
         try {
             XposedHelpers.findAndHookMethod(
@@ -109,23 +120,13 @@ object SystemPropertyHook {
                 android.content.Context::class.java,
                 object : XC_MethodHook() {
                     override fun afterHookedMethod(param: MethodHookParam) {
-                        val info = param.result
-                        if (info != null) {
-                            try {
-                                XposedHelpers.callMethod(info, "getId")
-                                // 构造新的 OAID 返回
-                                val fakeInfo = XposedHelpers.newInstance(
-                                    XposedHelpers.findClass(
-                                        "com.huawei.hms.ads.identifier.AdvertisingIdClient\$Info",
-                                        lpparam.classLoader
-                                    ),
-                                    p.oaid,
-                                    java.lang.Boolean.FALSE
-                                )
-                                param.result = fakeInfo
-                                HookInit.log("  [Hook] 华为 OAID → ${p.oaid}")
-                            } catch (_: Throwable) {}
-                        }
+                        try {
+                            val infoClass = XposedHelpers.findClass(
+                                "com.huawei.hms.ads.identifier.AdvertisingIdClient\$Info",
+                                lpparam.classLoader
+                            )
+                            param.result = XposedHelpers.newInstance(infoClass, p.oaid, false)
+                        } catch (_: Throwable) {}
                     }
                 }
             )
@@ -134,46 +135,97 @@ object SystemPropertyHook {
         // 小米 OAID
         try {
             XposedHelpers.findAndHookMethod(
-                "com.android.id.impl.IdProviderImpl",
-                lpparam.classLoader,
-                "getOAID",
-                android.content.Context::class.java,
+                "com.android.id.impl.IdProviderImpl", lpparam.classLoader,
+                "getOAID", android.content.Context::class.java,
                 object : XC_MethodHook() {
                     override fun afterHookedMethod(param: MethodHookParam) {
                         param.result = p.oaid
-                        HookInit.log("  [Hook] 小米 OAID → ${p.oaid}")
                     }
                 }
             )
         } catch (_: Throwable) {}
 
-        // 通用 OAID (MSA SDK)
+        // OPPO OAID
         try {
             XposedHelpers.findAndHookMethod(
-                "com.bun.miitmdid.core.MdidSdkHelper",
-                lpparam.classLoader,
-                "InitSdk",
-                android.content.Context::class.java,
-                java.lang.Boolean::class.java,
-                Any::class.java,  // IIdentifierListener
-                object : XC_MethodHook() {
-                    override fun afterHookedMethod(param: MethodHookParam) {
-                        HookInit.log("  [Hook] MSA OAID SDK 初始化已拦截")
-                    }
-                }
-            )
-        } catch (_: Throwable) {}
-
-        // OPPO/VIVO OAID
-        try {
-            XposedHelpers.findAndHookMethod(
-                "com.heytap.openid.sdk.IdentifyService",
-                lpparam.classLoader,
+                "com.heytap.openid.sdk.IdentifyService", lpparam.classLoader,
                 "getOuid",
                 object : XC_MethodHook() {
                     override fun afterHookedMethod(param: MethodHookParam) {
                         param.result = p.oaid
-                        HookInit.log("  [Hook] OPPO OAID → ${p.oaid}")
+                    }
+                }
+            )
+        } catch (_: Throwable) {}
+
+        // VIVO OAID
+        try {
+            XposedHelpers.findAndHookMethod(
+                "com.vivo.identifier.IdentifierIdManager", lpparam.classLoader,
+                "getOAID", android.content.Context::class.java,
+                object : XC_MethodHook() {
+                    override fun afterHookedMethod(param: MethodHookParam) {
+                        param.result = p.oaid
+                    }
+                }
+            )
+        } catch (_: Throwable) {}
+
+        // MSA SDK (通用)
+        try {
+            XposedHelpers.findAndHookMethod(
+                "com.bun.miitmdid.core.MdidSdkHelper", lpparam.classLoader,
+                "InitSdk",
+                android.content.Context::class.java,
+                Boolean::class.java,
+                Any::class.java,
+                object : XC_MethodHook() {
+                    override fun afterHookedMethod(param: MethodHookParam) {
+                        HookInit.log("  [OAID] MSA SDK 已拦截")
+                    }
+                }
+            )
+        } catch (_: Throwable) {}
+
+        // Google AAID (Play Services)
+        try {
+            XposedHelpers.findAndHookMethod(
+                "com.google.android.gms.ads.identifier.AdvertisingIdClient",
+                lpparam.classLoader,
+                "getAdvertisingIdInfo",
+                android.content.Context::class.java,
+                object : XC_MethodHook() {
+                    override fun afterHookedMethod(param: MethodHookParam) {
+                        try {
+                            val infoClass = XposedHelpers.findClass(
+                                "com.google.android.gms.ads.identifier.AdvertisingIdClient\$Info",
+                                lpparam.classLoader
+                            )
+                            param.result = XposedHelpers.newInstance(infoClass, p.oaid, false)
+                        } catch (_: Throwable) {}
+                    }
+                }
+            )
+        } catch (_: Throwable) {}
+    }
+
+    // ===== /proc/cpuinfo 读取拦截 =====
+    private fun hookCpuInfo(lpparam: XC_LoadPackage.LoadPackageParam, cfg: SpoofConfig, p: com.devicefaker.model.DeviceProfile) {
+        if (!cfg.spoofCpuModel) return
+
+        try {
+            // 拦截 FileInputStream 读取 /proc/cpuinfo
+            XposedHelpers.findAndHookConstructor(
+                "java.io.FileInputStream", lpparam.classLoader,
+                java.io.File::class.java,
+                object : XC_MethodHook() {
+                    override fun beforeHookedMethod(param: MethodHookParam) {
+                        val file = param.args[0] as? java.io.File ?: return
+                        if (file.absolutePath.contains("/proc/cpuinfo")) {
+                            // 不让读真实cpuinfo，用假的替换
+                            // 这里我们无法直接替换，但可以记录
+                            HookInit.log("  [CPU] 拦截 /proc/cpuinfo 读取")
+                        }
                     }
                 }
             )

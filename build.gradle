@@ -51,7 +51,8 @@ android {
 }
 
 dependencies {
-    // Xposed API (compileOnly - 不会打包进 APK)
+    // Xposed API (compileOnly — 不会打包进 APK)
+    // 编译用 API 89，与 xposedminversion=86 向下兼容
     compileOnly fileTree(dir: 'libs/compile_only', include: ['*.jar'])
 
     // Compose BOM
@@ -70,14 +71,13 @@ dependencies {
     // Navigation
     implementation 'androidx.navigation:navigation-compose:2.7.7'
 
-    // DataStore (persistent preferences)
+    // DataStore
     implementation 'androidx.datastore:datastore-preferences:1.0.0'
 
     // Core
     implementation 'androidx.core:core-ktx:1.12.0'
     implementation 'androidx.appcompat:appcompat:1.6.1'
 
-    // Debug
     debugImplementation 'androidx.compose.ui:ui-tooling'
     debugImplementation 'androidx.compose.ui:ui-test-manifest'
 }

@@ -3,7 +3,6 @@ package com.devicefaker.ui.screens
 import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -18,56 +17,19 @@ import androidx.compose.ui.unit.sp
 import com.devicefaker.HookInit
 import com.devicefaker.model.DeviceProfile
 import com.devicefaker.ui.theme.*
+import com.devicefaker.utils.DataStoreManager
 import com.devicefaker.utils.RandomGenerator
-
-data class DeviceField(
-    val label: String,
-    val icon: androidx.compose.ui.graphics.vector.ImageVector,
-    val key: String,
-    val getValue: () -> String,
-    val setValue: (String) -> Unit
-)
+import kotlinx.coroutines.launch
 
 @Composable
 fun DeviceScreen() {
-    val profile = remember { mutableStateOf(HookInit.currentProfile) }
-    var showSnackbar by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    var profile by remember { mutableStateOf(HookInit.currentProfile) }
 
-    val fields = remember {
-        listOf(
-            DeviceField("序列号 (SN)", Icons.Filled.Tag, "serial",
-                { profile.value.serialNumber },
-                { profile.value = profile.value.copy(serialNumber = it) }
-            ),
-            DeviceField("MAC 地址", Icons.Filled.Wifi, "mac",
-                { profile.value.macAddress },
-                { profile.value = profile.value.copy(macAddress = it) }
-            ),
-            DeviceField("Android ID", Icons.Filled.Android, "android_id",
-                { profile.value.androidId },
-                { profile.value = profile.value.copy(androidId = it) }
-            ),
-            DeviceField("IMEI", Icons.Filled.PhoneAndroid, "imei",
-                { profile.value.imei },
-                { profile.value = profile.value.copy(imei = it) }
-            ),
-            DeviceField("MEID", Icons.Filled.SimCard, "meid",
-                { profile.value.meid },
-                { profile.value = profile.value.copy(meid = it) }
-            ),
-            DeviceField("OAID / AAID", Icons.Filled.Fingerprint, "oaid",
-                { profile.value.oaid },
-                { profile.value = profile.value.copy(oaid = it) }
-            ),
-            DeviceField("手机型号", Icons.Filled.PhoneAndroid, "model",
-                { profile.value.phoneModel },
-                { profile.value = profile.value.copy(phoneModel = it) }
-            ),
-            DeviceField("CPU 型号", Icons.Filled.Memory, "cpu",
-                { profile.value.cpuModel },
-                { profile.value = profile.value.copy(cpuModel = it) }
-            )
-        )
+    // 同步到 HookInit
+    fun sync() {
+        HookInit.currentProfile = profile
+        scope.launch { DataStoreManager.saveProfile(profile) }
     }
 
     LazyColumn(
@@ -79,129 +41,61 @@ fun DeviceScreen() {
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = SurfaceDark
-                ),
+                colors = CardDefaults.cardColors(containerColor = SurfaceDark),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Surface(
-                        color = NeonGreen.copy(alpha = 0.15f),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Icon(
-                            Icons.Filled.Shield,
-                            contentDescription = null,
-                            tint = NeonGreen,
-                            modifier = Modifier.padding(12.dp).size(28.dp)
-                        )
+                Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Surface(color = NeonGreen.copy(alpha = 0.15f), shape = RoundedCornerShape(12.dp)) {
+                        Icon(Icons.Filled.Shield, null, tint = NeonGreen, modifier = Modifier.padding(12.dp).size(28.dp))
                     }
                     Spacer(Modifier.width(16.dp))
                     Column {
-                        Text(
-                            "设备伪装配置",
-                            style = MaterialTheme.typography.titleLarge,
-                            color = TextPrimary,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            "所有值将在目标应用启动时生效",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary
-                        )
+                        Text("设备伪装配置", style = MaterialTheme.typography.titleLarge, color = TextPrimary, fontWeight = FontWeight.Bold)
+                        Text("修改后将在目标应用下次启动时生效", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
                     }
                 }
             }
         }
 
-        // Randomize all button
+        // Randomize all
         item {
             Button(
                 onClick = {
-                    profile.value = DeviceProfile(
-                        serialNumber = RandomGenerator.generateSerialNumber(),
-                        macAddress = RandomGenerator.generateMacAddress(),
-                        androidId = RandomGenerator.generateAndroidId(),
-                        imei = RandomGenerator.generateImei(),
-                        meid = RandomGenerator.generateMeid(),
-                        oaid = RandomGenerator.generateOaid(),
-                        phoneModel = RandomGenerator.generatePhoneModel(),
-                        phoneBrand = "samsung",
-                        phoneManufacturer = "samsung",
-                        phoneDevice = "SM-S9280",
-                        phoneProduct = "e3qxxx",
-                        phoneHardware = "qcom",
-                        phoneFingerprint = "samsung/e3qxxx/e3q:14/UP1A.231005.007/S9280ZCU1AXK5:user/release-keys",
-                        cpuModel = RandomGenerator.generateCpuModel(),
-                        cpuCores = 8,
-                        cpuArch = "arm64-v8a"
-                    )
-                    HookInit.currentProfile = profile.value
-                    showSnackbar = true
+                    profile = RandomGenerator.generateFullProfile()
+                    sync()
                 },
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = NeonGreen.copy(alpha = 0.15f),
-                    contentColor = NeonGreen
-                ),
+                colors = ButtonDefaults.buttonColors(containerColor = NeonGreen.copy(alpha = 0.15f), contentColor = NeonGreen),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Icon(Icons.Filled.Shuffle, contentDescription = null, modifier = Modifier.size(18.dp))
+                Icon(Icons.Filled.Shuffle, null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
                 Text("随机生成全部", fontWeight = FontWeight.SemiBold)
             }
         }
 
-        // Device fields
-        items(fields) { field ->
-            DeviceFieldCard(
-                field = field,
-                onValueChange = { newValue ->
-                    field.setValue(newValue)
-                    HookInit.currentProfile = profile.value
-                }
-            )
-        }
-
-        // Apply button
-        item {
-            Button(
-                onClick = {
-                    HookInit.currentProfile = profile.value
-                    showSnackbar = true
-                },
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = NeonGreen,
-                    contentColor = DeepBackground
-                ),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Icon(Icons.Filled.CheckCircle, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text("应用配置", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-            }
-        }
-    }
-
-    if (showSnackbar) {
-        LaunchedEffect(Unit) {
-            kotlinx.coroutines.delay(2000)
-            showSnackbar = false
-        }
+        // Fields
+        item { DeviceFieldCard("序列号 (SN)", Icons.Filled.Tag, profile.serialNumber) { profile = profile.copy(serialNumber = it); sync() } }
+        item { DeviceFieldCard("MAC 地址", Icons.Filled.Wifi, profile.macAddress) { profile = profile.copy(macAddress = it); sync() } }
+        item { DeviceFieldCard("蓝牙 MAC", Icons.Filled.Bluetooth, profile.bluetoothMac) { profile = profile.copy(bluetoothMac = it); sync() } }
+        item { DeviceFieldCard("Android ID", Icons.Filled.Android, profile.androidId) { profile = profile.copy(androidId = it); sync() } }
+        item { DeviceFieldCard("IMEI", Icons.Filled.PhoneAndroid, profile.imei) { profile = profile.copy(imei = it); sync() } }
+        item { DeviceFieldCard("IMEI2 (SIM2)", Icons.Filled.SimCard, profile.imei2) { profile = profile.copy(imei2 = it); sync() } }
+        item { DeviceFieldCard("MEID", Icons.Filled.SimCard, profile.meid) { profile = profile.copy(meid = it); sync() } }
+        item { DeviceFieldCard("IMSI", Icons.Filled.CreditCard, profile.imsi) { profile = profile.copy(imsi = it); sync() } }
+        item { DeviceFieldCard("OAID / AAID", Icons.Filled.Fingerprint, profile.oaid) { profile = profile.copy(oaid = it); sync() } }
+        item { DeviceFieldCard("手机型号", Icons.Filled.Smartphone, profile.phoneModel) { profile = profile.copy(phoneModel = it); sync() } }
+        item { DeviceFieldCard("品牌", Icons.Filled.Store, profile.phoneBrand) { profile = profile.copy(phoneBrand = it); sync() } }
+        item { DeviceFieldCard("制造商", Icons.Filled.Factory, profile.phoneManufacturer) { profile = profile.copy(phoneManufacturer = it); sync() } }
+        item { DeviceFieldCard("CPU 型号", Icons.Filled.Memory, profile.cpuModel) { profile = profile.copy(cpuModel = it); sync() } }
+        item { DeviceFieldCard("CPU 架构", Icons.Filled.DeveloperBoard, profile.cpuArch) { profile = profile.copy(cpuArch = it); sync() } }
     }
 }
 
 @Composable
-fun DeviceFieldCard(
-    field: DeviceField,
-    onValueChange: (String) -> Unit
-) {
+fun DeviceFieldCard(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, value: String, onChange: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
-    var editingValue by remember { mutableStateOf(field.getValue()) }
+    var editing by remember(value) { mutableStateOf(value) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -215,34 +109,15 @@ fun DeviceFieldCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        field.icon,
-                        contentDescription = null,
-                        tint = NeonGreen,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    Icon(icon, null, tint = NeonGreen, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(12.dp))
                     Column {
-                        Text(
-                            field.label,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = TextPrimary,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            field.getValue(),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary,
-                            fontFamily = FontFamily.Monospace
-                        )
+                        Text(label, style = MaterialTheme.typography.titleMedium, color = TextPrimary, fontWeight = FontWeight.SemiBold)
+                        Text(value.ifEmpty { "未设置" }, style = MaterialTheme.typography.bodySmall, color = TextSecondary, fontFamily = FontFamily.Monospace)
                     }
                 }
                 IconButton(onClick = { expanded = !expanded }) {
-                    Icon(
-                        if (expanded) Icons.Filled.ExpandLess else Icons.Filled.Edit,
-                        contentDescription = "编辑",
-                        tint = NeonGreen
-                    )
+                    Icon(if (expanded) Icons.Filled.ExpandLess else Icons.Filled.Edit, "编辑", tint = NeonGreen)
                 }
             }
 
@@ -250,20 +125,14 @@ fun DeviceFieldCard(
                 Column {
                     Spacer(Modifier.height(12.dp))
                     OutlinedTextField(
-                        value = editingValue,
-                        onValueChange = {
-                            editingValue = it
-                            onValueChange(it)
-                        },
+                        value = editing,
+                        onValueChange = { editing = it; onChange(it) },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("自定义值") },
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = NeonGreen,
-                            focusedLabelColor = NeonGreen,
-                            cursorColor = NeonGreen,
-                            focusedTextColor = TextPrimary,
-                            unfocusedTextColor = TextPrimary
+                            focusedBorderColor = NeonGreen, focusedLabelColor = NeonGreen,
+                            cursorColor = NeonGreen, focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary
                         ),
                         shape = RoundedCornerShape(8.dp)
                     )
@@ -271,24 +140,13 @@ fun DeviceFieldCard(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(
                             onClick = {
-                                val newValue = when (field.key) {
-                                    "serial" -> RandomGenerator.generateSerialNumber()
-                                    "mac" -> RandomGenerator.generateMacAddress()
-                                    "android_id" -> RandomGenerator.generateAndroidId()
-                                    "imei" -> RandomGenerator.generateImei()
-                                    "meid" -> RandomGenerator.generateMeid()
-                                    "oaid" -> RandomGenerator.generateOaid()
-                                    "model" -> RandomGenerator.generatePhoneModel()
-                                    "cpu" -> RandomGenerator.generateCpuModel()
-                                    else -> ""
-                                }
-                                editingValue = newValue
-                                onValueChange(newValue)
+                                val newVal = randomValueForField(label)
+                                editing = newVal; onChange(newVal)
                             },
                             shape = RoundedCornerShape(8.dp),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonGreen)
                         ) {
-                            Icon(Icons.Filled.Shuffle, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Filled.Shuffle, null, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(4.dp))
                             Text("随机")
                         }
@@ -296,12 +154,28 @@ fun DeviceFieldCard(
                             onClick = { expanded = false },
                             shape = RoundedCornerShape(8.dp),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary)
-                        ) {
-                            Text("完成")
-                        }
+                        ) { Text("完成") }
                     }
                 }
             }
         }
     }
+}
+
+private fun randomValueForField(label: String): String = when {
+    label.contains("序列号") -> RandomGenerator.generateSerialNumber()
+    label.contains("MAC") -> RandomGenerator.generateMacAddress()
+    label.contains("蓝牙") -> RandomGenerator.generateMacAddress()
+    label.contains("Android ID") -> RandomGenerator.generateAndroidId()
+    label.contains("IMEI2") -> RandomGenerator.generateImei()
+    label.contains("IMEI") -> RandomGenerator.generateImei()
+    label.contains("MEID") -> RandomGenerator.generateMeid()
+    label.contains("IMSI") -> RandomGenerator.generateImsi()
+    label.contains("OAID") -> RandomGenerator.generateOaid()
+    label.contains("型号") -> RandomGenerator.generatePhoneModel()
+    label.contains("品牌") -> "samsung"
+    label.contains("制造商") -> "samsung"
+    label.contains("CPU") && label.contains("架构") -> RandomGenerator.generateCpuArch()
+    label.contains("CPU") -> RandomGenerator.generateCpuModel()
+    else -> ""
 }

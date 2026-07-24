@@ -22,7 +22,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun LogScreen() {
-    val logs = remember { derivedStateOf { HookInit.logLines.toList() } }
+    val logs = remember { derivedStateOf { HookInit.getLogs() } }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     var autoScroll by remember { mutableStateOf(true) }
@@ -34,7 +34,6 @@ fun LogScreen() {
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // Header card
         Card(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             colors = CardDefaults.cardColors(containerColor = SurfaceDark),
@@ -47,86 +46,35 @@ fun LogScreen() {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Surface(
-                            color = NeonGreen.copy(alpha = 0.15f),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Icon(
-                                Icons.Filled.Terminal,
-                                contentDescription = null,
-                                tint = NeonGreen,
-                                modifier = Modifier.padding(10.dp).size(24.dp)
-                            )
+                        Surface(color = NeonGreen.copy(alpha = 0.15f), shape = RoundedCornerShape(12.dp)) {
+                            Icon(Icons.Filled.Terminal, null, tint = NeonGreen, modifier = Modifier.padding(10.dp).size(24.dp))
                         }
                         Spacer(Modifier.width(12.dp))
                         Column {
-                            Text(
-                                "Hook 日志",
-                                style = MaterialTheme.typography.titleLarge,
-                                color = TextPrimary,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                "${logs.value.size} 条记录",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = TextSecondary
-                            )
+                            Text("Hook 日志", style = MaterialTheme.typography.titleLarge, color = TextPrimary, fontWeight = FontWeight.Bold)
+                            Text("${logs.value.size} 条记录", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
                         }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        IconButton(
-                            onClick = { autoScroll = !autoScroll },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                if (autoScroll) Icons.Filled.VerticalAlignBottom else Icons.Filled.PauseCircle,
-                                contentDescription = "自动滚动",
-                                tint = if (autoScroll) NeonGreen else TextSecondary
-                            )
+                        IconButton(onClick = { autoScroll = !autoScroll }, modifier = Modifier.size(36.dp)) {
+                            Icon(if (autoScroll) Icons.Filled.VerticalAlignBottom else Icons.Filled.PauseCircle,
+                                "自动滚动", tint = if (autoScroll) NeonGreen else TextSecondary)
                         }
-                        IconButton(
-                            onClick = {
-                                synchronized(HookInit.logLines) {
-                                    HookInit.logLines.clear()
-                                }
-                            },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                Icons.Filled.DeleteSweep,
-                                contentDescription = "清空",
-                                tint = ErrorRed
-                            )
+                        IconButton(onClick = { HookInit.clearLogs() }, modifier = Modifier.size(36.dp)) {
+                            Icon(Icons.Filled.DeleteSweep, "清空", tint = ErrorRed)
                         }
                     }
                 }
             }
         }
 
-        // Log list
         if (logs.value.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        Icons.Filled.Inbox,
-                        contentDescription = null,
-                        tint = TextSecondary.copy(alpha = 0.5f),
-                        modifier = Modifier.size(48.dp)
-                    )
+                    Icon(Icons.Filled.Inbox, null, tint = TextSecondary.copy(alpha = 0.5f), modifier = Modifier.size(48.dp))
                     Spacer(Modifier.height(12.dp))
-                    Text(
-                        "暂无日志",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = TextSecondary
-                    )
-                    Text(
-                        "启动目标应用后自动记录",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary.copy(alpha = 0.7f)
-                    )
+                    Text("暂无日志", style = MaterialTheme.typography.bodyLarge, color = TextSecondary)
+                    Text("启动目标应用后自动记录", style = MaterialTheme.typography.bodySmall, color = TextSecondary.copy(alpha = 0.7f))
                 }
             }
         } else {
@@ -137,33 +85,30 @@ fun LogScreen() {
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 items(logs.value) { log ->
-                    val isHookLine = log.contains("[Hook]")
-                    val isError = log.contains("✗") || log.contains("⚠")
-                    val isSuccess = log.contains("✓")
                     val isSeparator = log.contains("====")
+                    val isSuccess = log.contains("✓")
+                    val isError = log.contains("✗") || log.contains("⚠")
+                    val isHook = log.contains("  [")
 
-                    val lineColor = when {
+                    val color = when {
                         isSeparator -> NeonGreen
                         isSuccess -> NeonGreen
                         isError -> ErrorRed
-                        isHookLine -> WarningAmber
+                        isHook -> WarningAmber
                         else -> TextSecondary
                     }
 
                     Text(
                         text = log,
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontSize = 11.sp,
-                            fontFamily = FontFamily.Monospace
-                        ),
-                        color = lineColor,
-                        modifier = Modifier
-                            .fillMaxWidth()
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, fontFamily = FontFamily.Monospace),
+                        color = color,
+                        modifier = Modifier.fillMaxWidth()
                             .background(
-                                if (isSeparator) NeonGreen.copy(alpha = 0.05f)
-                                else if (isHookLine) WarningAmber.copy(alpha = 0.03f)
-                                else androidx.compose.ui.graphics.Color.Transparent,
-                                RoundedCornerShape(4.dp)
+                                when {
+                                    isSeparator -> NeonGreen.copy(alpha = 0.05f)
+                                    isHook -> WarningAmber.copy(alpha = 0.03f)
+                                    else -> androidx.compose.ui.graphics.Color.Transparent
+                                }, RoundedCornerShape(4.dp)
                             )
                             .padding(horizontal = 8.dp, vertical = 3.dp)
                     )

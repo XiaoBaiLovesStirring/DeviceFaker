@@ -14,72 +14,40 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.devicefaker.HookInit
 import com.devicefaker.ui.theme.*
+import com.devicefaker.utils.DataStoreManager
+import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen() {
-    var targetPackage by remember { mutableStateOf(HookInit.currentConfig.targetPackage) }
-    var spoofSerial by remember { mutableStateOf(HookInit.currentConfig.spoofSerial) }
-    var spoofMac by remember { mutableStateOf(HookInit.currentConfig.spoofMac) }
-    var spoofAndroidId by remember { mutableStateOf(HookInit.currentConfig.spoofAndroidId) }
-    var spoofImei by remember { mutableStateOf(HookInit.currentConfig.spoofImei) }
-    var spoofMeid by remember { mutableStateOf(HookInit.currentConfig.spoofMeid) }
-    var spoofOaid by remember { mutableStateOf(HookInit.currentConfig.spoofOaid) }
-    var spoofPhoneModel by remember { mutableStateOf(HookInit.currentConfig.spoofPhoneModel) }
-    var spoofCpuModel by remember { mutableStateOf(HookInit.currentConfig.spoofCpuModel) }
-    var networkIntercept by remember { mutableStateOf(HookInit.currentConfig.networkIntercept) }
-    var randomizeOnBoot by remember { mutableStateOf(HookInit.currentConfig.randomizeOnBoot) }
+    val scope = rememberCoroutineScope()
+    var config by remember { mutableStateOf(HookInit.currentConfig) }
+
+    fun sync() {
+        HookInit.currentConfig = config
+        scope.launch { DataStoreManager.saveConfig(config) }
+    }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // About card
+        // About
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = SurfaceDark),
             shape = RoundedCornerShape(16.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Surface(
-                    color = NeonGreen.copy(alpha = 0.15f),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Icon(
-                        Icons.Filled.Shield,
-                        contentDescription = null,
-                        tint = NeonGreen,
-                        modifier = Modifier.padding(16.dp).size(40.dp)
-                    )
+            Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Surface(color = NeonGreen.copy(alpha = 0.15f), shape = RoundedCornerShape(16.dp)) {
+                    Icon(Icons.Filled.Shield, null, tint = NeonGreen, modifier = Modifier.padding(16.dp).size(40.dp))
                 }
                 Spacer(Modifier.height(12.dp))
-                Text(
-                    "DeviceFaker Pro",
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = TextPrimary,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    "v2.0.0 · API 86+",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = TextSecondary
-                )
+                Text("DeviceFaker Pro", style = MaterialTheme.typography.headlineMedium, color = TextPrimary, fontWeight = FontWeight.Bold)
+                Text("v2.0.0 · Xposed API 86", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
                 Spacer(Modifier.height(8.dp))
-                Surface(
-                    color = NeonGreen.copy(alpha = 0.1f),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text(
-                        "免 Root · LSPatch 兼容",
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = NeonGreen
-                    )
+                Surface(color = NeonGreen.copy(alpha = 0.1f), shape = RoundedCornerShape(8.dp)) {
+                    Text("免 Root · LSPatch 兼容", modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        style = MaterialTheme.typography.labelMedium, color = NeonGreen)
                 }
             }
         }
@@ -91,28 +59,16 @@ fun SettingsScreen() {
             shape = RoundedCornerShape(12.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    "目标应用包名",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = TextPrimary,
-                    fontWeight = FontWeight.SemiBold
-                )
+                Text("目标应用包名", style = MaterialTheme.typography.titleMedium, color = TextPrimary, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
-                    value = targetPackage,
-                    onValueChange = {
-                        targetPackage = it
-                        HookInit.currentConfig = HookInit.currentConfig.copy(targetPackage = it)
-                    },
+                    value = config.targetPackage,
+                    onValueChange = { config = config.copy(targetPackage = it); sync() },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = NeonGreen,
-                        focusedLabelColor = NeonGreen,
-                        cursorColor = NeonGreen,
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary,
-                        unfocusedBorderColor = BorderDark
+                        focusedBorderColor = NeonGreen, focusedLabelColor = NeonGreen, cursorColor = NeonGreen,
+                        focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary, unfocusedBorderColor = BorderDark
                     ),
                     shape = RoundedCornerShape(8.dp)
                 )
@@ -126,54 +82,20 @@ fun SettingsScreen() {
             shape = RoundedCornerShape(12.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    "伪装开关",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = TextPrimary,
-                    fontWeight = FontWeight.SemiBold
-                )
+                Text("伪装开关", style = MaterialTheme.typography.titleMedium, color = TextPrimary, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(8.dp))
-
-                SettingsToggle("序列号 (SN)", spoofSerial) {
-                    spoofSerial = it
-                    HookInit.currentConfig = HookInit.currentConfig.copy(spoofSerial = it)
-                }
-                SettingsToggle("MAC 地址", spoofMac) {
-                    spoofMac = it
-                    HookInit.currentConfig = HookInit.currentConfig.copy(spoofMac = it)
-                }
-                SettingsToggle("Android ID", spoofAndroidId) {
-                    spoofAndroidId = it
-                    HookInit.currentConfig = HookInit.currentConfig.copy(spoofAndroidId = it)
-                }
-                SettingsToggle("IMEI", spoofImei) {
-                    spoofImei = it
-                    HookInit.currentConfig = HookInit.currentConfig.copy(spoofImei = it)
-                }
-                SettingsToggle("MEID", spoofMeid) {
-                    spoofMeid = it
-                    HookInit.currentConfig = HookInit.currentConfig.copy(spoofMeid = it)
-                }
-                SettingsToggle("OAID / AAID", spoofOaid) {
-                    spoofOaid = it
-                    HookInit.currentConfig = HookInit.currentConfig.copy(spoofOaid = it)
-                }
-                SettingsToggle("手机型号", spoofPhoneModel) {
-                    spoofPhoneModel = it
-                    HookInit.currentConfig = HookInit.currentConfig.copy(spoofPhoneModel = it)
-                }
-                SettingsToggle("CPU 型号", spoofCpuModel) {
-                    spoofCpuModel = it
-                    HookInit.currentConfig = HookInit.currentConfig.copy(spoofCpuModel = it)
-                }
-                SettingsToggle("网络拦截", networkIntercept) {
-                    networkIntercept = it
-                    HookInit.currentConfig = HookInit.currentConfig.copy(networkIntercept = it)
-                }
-                SettingsToggle("启动时随机化", randomizeOnBoot) {
-                    randomizeOnBoot = it
-                    HookInit.currentConfig = HookInit.currentConfig.copy(randomizeOnBoot = it)
-                }
+                Toggle("序列号 (SN)", config.spoofSerial) { config = config.copy(spoofSerial = it); sync() }
+                Toggle("MAC 地址", config.spoofMac) { config = config.copy(spoofMac = it); sync() }
+                Toggle("蓝牙 MAC", config.spoofBluetoothMac) { config = config.copy(spoofBluetoothMac = it); sync() }
+                Toggle("Android ID", config.spoofAndroidId) { config = config.copy(spoofAndroidId = it); sync() }
+                Toggle("IMEI", config.spoofImei) { config = config.copy(spoofImei = it); sync() }
+                Toggle("MEID", config.spoofMeid) { config = config.copy(spoofMeid = it); sync() }
+                Toggle("IMSI", config.spoofImsi) { config = config.copy(spoofImsi = it); sync() }
+                Toggle("OAID / AAID", config.spoofOaid) { config = config.copy(spoofOaid = it); sync() }
+                Toggle("手机型号", config.spoofPhoneModel) { config = config.copy(spoofPhoneModel = it); sync() }
+                Toggle("CPU 型号", config.spoofCpuModel) { config = config.copy(spoofCpuModel = it); sync() }
+                Toggle("网络拦截", config.networkIntercept) { config = config.copy(networkIntercept = it); sync() }
+                Toggle("启动时随机化", config.randomizeOnBoot) { config = config.copy(randomizeOnBoot = it); sync() }
             }
         }
 
@@ -184,12 +106,7 @@ fun SettingsScreen() {
             shape = RoundedCornerShape(12.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    "LSPatch 使用指南",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = TextPrimary,
-                    fontWeight = FontWeight.SemiBold
-                )
+                Text("LSPatch 使用指南", style = MaterialTheme.typography.titleMedium, color = TextPrimary, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(8.dp))
                 GuideStep("1", "安装 LSPatch 应用")
                 GuideStep("2", "在 LSPatch 中选择目标 APK 进行修补")
@@ -202,61 +119,28 @@ fun SettingsScreen() {
 }
 
 @Composable
-fun SettingsToggle(
-    label: String,
-    checked: Boolean,
-    onToggle: (Boolean) -> Unit
-) {
+fun Toggle(label: String, checked: Boolean, onToggle: (Boolean) -> Unit) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            label,
-            style = MaterialTheme.typography.bodyLarge,
-            color = TextPrimary
-        )
-        Switch(
-            checked = checked,
-            onCheckedChange = onToggle,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = DeepBackground,
-                checkedTrackColor = NeonGreen,
-                uncheckedThumbColor = TextSecondary,
-                uncheckedTrackColor = BorderDark
-            )
-        )
+        Text(label, style = MaterialTheme.typography.bodyLarge, color = TextPrimary)
+        Switch(checked = checked, onCheckedChange = onToggle,
+            colors = SwitchDefaults.colors(checkedThumbColor = DeepBackground, checkedTrackColor = NeonGreen,
+                uncheckedThumbColor = TextSecondary, uncheckedTrackColor = BorderDark))
     }
 }
 
 @Composable
 fun GuideStep(number: String, text: String) {
-    Row(
-        modifier = Modifier.padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Surface(
-            color = NeonGreen.copy(alpha = 0.15f),
-            shape = RoundedCornerShape(8.dp),
-            modifier = Modifier.size(28.dp)
-        ) {
+    Row(modifier = Modifier.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Surface(color = NeonGreen.copy(alpha = 0.15f), shape = RoundedCornerShape(8.dp), modifier = Modifier.size(28.dp)) {
             Box(contentAlignment = Alignment.Center) {
-                Text(
-                    number,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = NeonGreen,
-                    fontWeight = FontWeight.Bold
-                )
+                Text(number, style = MaterialTheme.typography.labelMedium, color = NeonGreen, fontWeight = FontWeight.Bold)
             }
         }
         Spacer(Modifier.width(12.dp))
-        Text(
-            text,
-            style = MaterialTheme.typography.bodyMedium,
-            color = TextSecondary
-        )
+        Text(text, style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
     }
 }
