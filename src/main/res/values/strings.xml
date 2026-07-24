@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DeviceFaker</string>
+    <string name="tab_device">设备伪装</string>
+    <string name="tab_network">服务器拦截</string>
+    <string name="tab_logs">日志</string>
+    <string name="tab_settings">设置</string>
+    <string name="serial_number">序列号 (SN)</string>
+    <string name="mac_address">MAC 地址</string>
+    <string name="android_id">Android ID</string>
+    <string name="imei">IMEI</string>
+    <string name="meid">MEID</string>
+    <string name="oaid">OAID / AAID</string>
+    <string name="phone_model">手机型号</string>
+    <string name="cpu_model">CPU 型号</string>
+    <string name="randomize">随机生成</string>
+    <string name="apply">应用</string>
+    <string name="reset">重置</string>
+    <string name="target_package">目标应用包名</string>
+    <string name="enabled">已启用</string>
+    <string name="disabled">已禁用</string>
+    <string name="network_intercept_title">服务器拦截规则</string>
+    <string name="redirect_url">重定向 URL</string>
+    <string name="modify_response">修改响应</string>
+    <string name="add_rule">添加规则</string>
+    <string name="rule_name">规则名称</string>
+    <string name="original_url">原始 URL</string>
+    <string name="new_url">新 URL</string>
+    <string name="response_body">响应体</string>
+    <string name="status_code">状态码</string>
+    <string name="save">保存</string>
+    <string name="cancel">取消</string>
+    <string name="clear_logs">清空日志</string>
+    <string name="export_logs">导出日志</string>
+    <string name="about">关于</string>
+    <string name="version">版本</string>
+    <string name="lspatch_tip">本模块需配合 LSPatch 使用，无需 Root 权限</string>
+</resources>
