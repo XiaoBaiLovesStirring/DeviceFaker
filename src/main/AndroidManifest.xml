@@ -29,10 +29,10 @@
             android:value="true" />
         <meta-data
             android:name="xposeddescription"
-            android:value="DeviceFaker Pro v2.0 - 设备伪装·服务器拦截·免Root (LSPatch兼容)" />
+            android:value="DeviceFaker Pro v2.2 - 设备伪装·服务器拦截·免Root (LSPatch兼容·API 102)" />
         <meta-data
             android:name="xposedminversion"
-            android:value="86" />
+            android:value="102" />
         <meta-data
             android:name="xposedscope"
             android:resource="@array/xposed_scope" />

@@ -1,35 +1,26 @@
 package com.devicefaker.hooks
 
-import com.devicefaker.DeviceState
 import com.devicefaker.model.NetworkRuleEngine
-import com.devicefaker.model.SpoofConfig
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
 import de.robv.android.xposed.callbacks.XC_LoadPackage
 import java.io.ByteArrayInputStream
-import java.io.InputStream
 import java.net.HttpURLConnection
-import java.net.URL
 
 /**
- * Hook 4: 网络拦截 — 真正的篡改引擎
+ * 网络请求拦截
  * 支持: OkHttp 请求重定向/响应篡改, HttpURLConnection 响应篡改, WebView 重定向
  */
 object NetworkHook {
 
-    fun hook(lpparam: XC_LoadPackage.LoadPackageParam, cfg: SpoofConfig) {
-        if (!cfg.networkIntercept) {
-            DeviceState.log("○ 网络拦截已禁用")
-            return
-        }
-
+    fun hook(lpparam: XC_LoadPackage.LoadPackageParam) {
         hookOkHttpExecute(lpparam)
         hookOkHttpEnqueue(lpparam)
         hookHttpURLConnection(lpparam)
         hookWebView(lpparam)
 
-        DeviceState.log("✓ 网络拦截已激活 (${NetworkRuleEngine.getRules().size} 条规则)")
+        XposedBridge.log("  网络拦截已激活 (${NetworkRuleEngine.getRules().size} 条规则)")
     }
 
     // ===== OkHttp RealCall.execute() — 同步请求 =====
@@ -39,7 +30,6 @@ object NetworkHook {
 
             XposedHelpers.findAndHookMethod(realCallClass, "execute",
                 object : XC_MethodHook() {
-
                     override fun beforeHookedMethod(param: MethodHookParam) {
                         if (!NetworkRuleEngine.isEnabled()) return
                         try {
@@ -47,24 +37,19 @@ object NetworkHook {
                             val url = XposedHelpers.callMethod(originalRequest, "url").toString()
                             val method = XposedHelpers.callMethod(originalRequest, "method").toString()
 
-                            // 检查是否需要阻断
                             if (NetworkRuleEngine.shouldBlock(url)) {
-                                DeviceState.log("  [BLOCK] $method $url")
-                                // 抛异常阻断请求
+                                XposedBridge.log("  [BLOCK] $method $url")
                                 throw java.io.IOException("Request blocked by DeviceFaker")
                             }
 
-                            // 检查是否需要重定向
                             val redirectUrl = NetworkRuleEngine.applyRedirect(url)
                             if (redirectUrl != null) {
-                                DeviceState.log("  [REDIRECT] $url → $redirectUrl")
-                                // 构建新 URL 的 Request
+                                XposedBridge.log("  [REDIRECT] $url → $redirectUrl")
                                 val okHttpUrlClass = XposedHelpers.findClass("okhttp3.HttpUrl", lpparam.classLoader)
                                 val newHttpUrl = XposedHelpers.callStaticMethod(okHttpUrlClass, "parse", redirectUrl)
                                 val newRequest = XposedHelpers.callMethod(originalRequest, "newBuilder")
                                 XposedHelpers.callMethod(newRequest, "url", newHttpUrl)
                                 val builtRequest = XposedHelpers.callMethod(newRequest, "build")
-                                // 替换 RealCall 中的 originalRequest
                                 XposedHelpers.setObjectField(param.thisObject, "originalRequest", builtRequest)
                             }
                         } catch (e: java.io.IOException) {
@@ -82,7 +67,7 @@ object NetworkHook {
 
                             val tampered = NetworkRuleEngine.applyResponseTampering(url)
                             if (tampered != null) {
-                                DeviceState.log("  [TAMPER] $url → ${tampered.statusCode} (${tampered.body.length} bytes)")
+                                XposedBridge.log("  [TAMPER] $url → ${tampered.statusCode}")
 
                                 val mediaTypeClass = XposedHelpers.findClass("okhttp3.MediaType", lpparam.classLoader)
                                 val mediaType = XposedHelpers.callStaticMethod(mediaTypeClass, "parse", tampered.contentType)
@@ -92,7 +77,6 @@ object NetworkHook {
                                 val builder = XposedHelpers.callMethod(response, "newBuilder")
                                 XposedHelpers.callMethod(builder, "body", newBody)
                                 XposedHelpers.callMethod(builder, "code", tampered.statusCode)
-                                // 移除 Content-Encoding 避免解压错误
                                 XposedHelpers.callMethod(builder, "removeHeader", "Content-Encoding")
                                 param.result = XposedHelpers.callMethod(builder, "build")
                             }
@@ -100,9 +84,9 @@ object NetworkHook {
                     }
                 }
             )
-            DeviceState.log("  ✓ OkHttp execute() 已拦截")
+            XposedBridge.log("  OkHttp execute() 已拦截")
         } catch (t: Throwable) {
-            DeviceState.log("  ⚠ OkHttp execute: ${t.message}")
+            XposedBridge.log("  OkHttp execute: ${t.message}")
         }
     }
 
@@ -120,10 +104,9 @@ object NetworkHook {
                             val originalRequest = XposedHelpers.callMethod(param.thisObject, "request")
                             val url = XposedHelpers.callMethod(originalRequest, "url").toString()
 
-                            // 检查重定向
                             val redirectUrl = NetworkRuleEngine.applyRedirect(url)
                             if (redirectUrl != null) {
-                                DeviceState.log("  [ASYNC REDIRECT] $url → $redirectUrl")
+                                XposedBridge.log("  [ASYNC REDIRECT] $url → $redirectUrl")
                                 val okHttpUrlClass = XposedHelpers.findClass("okhttp3.HttpUrl", lpparam.classLoader)
                                 val newHttpUrl = XposedHelpers.callStaticMethod(okHttpUrlClass, "parse", redirectUrl)
                                 val newRequest = XposedHelpers.callMethod(originalRequest, "newBuilder")
@@ -135,15 +118,14 @@ object NetworkHook {
                     }
                 }
             )
-            DeviceState.log("  ✓ OkHttp enqueue() 已拦截")
+            XposedBridge.log("  OkHttp enqueue() 已拦截")
         } catch (t: Throwable) {
-            DeviceState.log("  ⚠ OkHttp enqueue: ${t.message}")
+            XposedBridge.log("  OkHttp enqueue: ${t.message}")
         }
     }
 
     // ===== HttpURLConnection 拦截 =====
     private fun hookHttpURLConnection(lpparam: XC_LoadPackage.LoadPackageParam) {
-        // Hook getInputStream() — 篡改响应流
         try {
             XposedHelpers.findAndHookMethod(
                 HttpURLConnection::class.java, "getInputStream",
@@ -153,10 +135,9 @@ object NetworkHook {
                         try {
                             val conn = param.thisObject as HttpURLConnection
                             val url = conn.url.toString()
-
                             val tampered = NetworkRuleEngine.applyResponseTampering(url)
                             if (tampered != null) {
-                                DeviceState.log("  [HttpURL TAMPER] $url → ${tampered.statusCode}")
+                                XposedBridge.log("  [HttpURL TAMPER] $url")
                                 param.result = ByteArrayInputStream(tampered.body.toByteArray())
                             }
                         } catch (_: Throwable) {}
@@ -164,10 +145,9 @@ object NetworkHook {
                 }
             )
         } catch (t: Throwable) {
-            DeviceState.log("  ⚠ HttpURL getInputStream: ${t.message}")
+            XposedBridge.log("  HttpURL getInputStream: ${t.message}")
         }
 
-        // Hook getResponseCode() — 篡改状态码
         try {
             XposedHelpers.findAndHookMethod(
                 HttpURLConnection::class.java, "getResponseCode",
@@ -186,15 +166,14 @@ object NetworkHook {
                 }
             )
         } catch (t: Throwable) {
-            DeviceState.log("  ⚠ HttpURL getResponseCode: ${t.message}")
+            XposedBridge.log("  HttpURL getResponseCode: ${t.message}")
         }
 
-        DeviceState.log("  ✓ HttpURLConnection 已拦截")
+        XposedBridge.log("  HttpURLConnection 已拦截")
     }
 
     // ===== WebView 拦截 =====
     private fun hookWebView(lpparam: XC_LoadPackage.LoadPackageParam) {
-        // shouldInterceptRequest — 拦截并篡改
         try {
             XposedHelpers.findAndHookMethod(
                 "android.webkit.WebViewClient", lpparam.classLoader,
@@ -209,7 +188,7 @@ object NetworkHook {
                             val url = XposedHelpers.callMethod(request, "getUrl").toString()
                             val tampered = NetworkRuleEngine.applyResponseTampering(url)
                             if (tampered != null) {
-                                DeviceState.log("  [WebView TAMPER] $url")
+                                XposedBridge.log("  [WebView TAMPER] $url")
                                 val mimeType = when {
                                     url.contains(".json") -> "application/json"
                                     url.contains(".html") -> "text/html"
@@ -232,7 +211,6 @@ object NetworkHook {
             )
         } catch (_: Throwable) {}
 
-        // loadUrl() — 重定向
         try {
             XposedHelpers.findAndHookMethod(
                 "android.webkit.WebView", lpparam.classLoader,
@@ -243,7 +221,7 @@ object NetworkHook {
                         val url = param.args[0] as String
                         val redirectUrl = NetworkRuleEngine.applyRedirect(url)
                         if (redirectUrl != null) {
-                            DeviceState.log("  [WebView REDIRECT] $url → $redirectUrl")
+                            XposedBridge.log("  [WebView REDIRECT] $url → $redirectUrl")
                             param.args[0] = redirectUrl
                         }
                     }
@@ -251,6 +229,6 @@ object NetworkHook {
             )
         } catch (_: Throwable) {}
 
-        DeviceState.log("  ✓ WebView 已拦截")
+        XposedBridge.log("  WebView 已拦截")
     }
 }
