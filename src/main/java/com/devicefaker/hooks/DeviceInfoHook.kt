@@ -1,7 +1,7 @@
 package com.devicefaker.hooks
 
 import android.os.Build
-import com.devicefaker.HookInit
+import com.devicefaker.DeviceState
 import com.devicefaker.model.SpoofConfig
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
@@ -16,7 +16,7 @@ import java.net.NetworkInterface
 object DeviceInfoHook {
 
     fun hook(lpparam: XC_LoadPackage.LoadPackageParam, cfg: SpoofConfig) {
-        val p = HookInit.currentProfile
+        val p = DeviceState.currentProfile
 
         // === Build 静态字段 (通过 SystemProperties 底层拦截来实现) ===
         // 说明: Build 字段在类加载时从 SystemProperties 读取，SystemPropertyHook 已拦截
@@ -32,7 +32,7 @@ object DeviceInfoHook {
             trySetBuildField("SUPPORTED_ABIS", arrayOf(p.cpuArch, "armeabi-v7a", "armeabi"))
             trySetBuildField("SUPPORTED_32_BIT_ABIS", arrayOf("armeabi-v7a", "armeabi"))
             trySetBuildField("SUPPORTED_64_BIT_ABIS", arrayOf(p.cpuArch))
-            HookInit.log("✓ Build 字段: ${p.phoneModel} / ${p.phoneManufacturer}")
+            DeviceState.log("✓ Build 字段: ${p.phoneModel} / ${p.phoneManufacturer}")
         }
 
         // === Build.getSerial() ===
@@ -47,7 +47,7 @@ object DeviceInfoHook {
                     }
                 )
             } catch (t: Throwable) {
-                HookInit.log("⚠ Build.getSerial: ${t.message}")
+                DeviceState.log("⚠ Build.getSerial: ${t.message}")
             }
         }
 
@@ -64,7 +64,7 @@ object DeviceInfoHook {
                     }
                 )
             } catch (t: Throwable) {
-                HookInit.log("⚠ Wifi MAC: ${t.message}")
+                DeviceState.log("⚠ Wifi MAC: ${t.message}")
             }
         }
 
@@ -81,7 +81,7 @@ object DeviceInfoHook {
                     }
                 )
             } catch (t: Throwable) {
-                HookInit.log("⚠ BT MAC: ${t.message}")
+                DeviceState.log("⚠ BT MAC: ${t.message}")
             }
         }
 
@@ -108,11 +108,11 @@ object DeviceInfoHook {
                     }
                 )
             } catch (t: Throwable) {
-                HookInit.log("⚠ NetworkInterface: ${t.message}")
+                DeviceState.log("⚠ NetworkInterface: ${t.message}")
             }
         }
 
-        HookInit.log("✓ DeviceInfoHook 完成")
+        DeviceState.log("✓ DeviceInfoHook 完成")
     }
 
     private fun trySetBuildField(field: String, value: Any) {

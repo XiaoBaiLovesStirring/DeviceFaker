@@ -1,7 +1,7 @@
 package com.devicefaker.hooks
 
 import android.telephony.TelephonyManager
-import com.devicefaker.HookInit
+import com.devicefaker.DeviceState
 import com.devicefaker.model.SpoofConfig
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedHelpers
@@ -14,7 +14,7 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage
 object TelephonyHook {
 
     fun hook(lpparam: XC_LoadPackage.LoadPackageParam, cfg: SpoofConfig) {
-        val p = HookInit.currentProfile
+        val p = DeviceState.currentProfile
 
         try {
             // === getDeviceId() → IMEI (GSM) / MEID (CDMA) ===
@@ -181,9 +181,9 @@ object TelephonyHook {
                 )
             } catch (_: Throwable) {}
 
-            HookInit.log("✓ TelephonyHook 完成")
+            DeviceState.log("✓ TelephonyHook 完成")
         } catch (t: Throwable) {
-            HookInit.log("⚠ TelephonyManager: ${t.message}")
+            DeviceState.log("⚠ TelephonyManager: ${t.message}")
         }
     }
 }

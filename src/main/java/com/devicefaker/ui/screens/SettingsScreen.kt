@@ -12,7 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.devicefaker.HookInit
+import com.devicefaker.DeviceState
 import com.devicefaker.ui.theme.*
 import com.devicefaker.utils.DataStoreManager
 import kotlinx.coroutines.launch
@@ -20,10 +20,10 @@ import kotlinx.coroutines.launch
 @Composable
 fun SettingsScreen() {
     val scope = rememberCoroutineScope()
-    var config by remember { mutableStateOf(HookInit.currentConfig) }
+    var config by remember { mutableStateOf(DeviceState.currentConfig) }
 
     fun sync() {
-        HookInit.currentConfig = config
+        DeviceState.currentConfig = config
         scope.launch { DataStoreManager.saveConfig(config) }
     }
 

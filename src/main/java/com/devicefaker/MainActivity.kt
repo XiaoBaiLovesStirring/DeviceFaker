@@ -29,12 +29,12 @@ class MainActivity : ComponentActivity() {
         kotlinx.coroutines.GlobalScope.launch {
             val savedProfile = DataStoreManager.loadProfile()
             if (savedProfile.serialNumber.isNotEmpty()) {
-                HookInit.currentProfile = savedProfile
+                DeviceState.currentProfile = savedProfile
             } else {
-                HookInit.currentProfile = RandomGenerator.generateFullProfile()
-                DataStoreManager.saveProfile(HookInit.currentProfile)
+                DeviceState.currentProfile = RandomGenerator.generateFullProfile()
+                DataStoreManager.saveProfile(DeviceState.currentProfile)
             }
-            HookInit.currentConfig = DataStoreManager.loadConfig()
+            DeviceState.currentConfig = DataStoreManager.loadConfig()
         }
 
         enableEdgeToEdge()

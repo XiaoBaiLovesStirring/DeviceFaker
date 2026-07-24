@@ -14,7 +14,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.devicefaker.HookInit
+import com.devicefaker.DeviceState
 import com.devicefaker.model.DeviceProfile
 import com.devicefaker.ui.theme.*
 import com.devicefaker.utils.DataStoreManager
@@ -24,11 +24,11 @@ import kotlinx.coroutines.launch
 @Composable
 fun DeviceScreen() {
     val scope = rememberCoroutineScope()
-    var profile by remember { mutableStateOf(HookInit.currentProfile) }
+    var profile by remember { mutableStateOf(DeviceState.currentProfile) }
 
     // 同步到 HookInit
     fun sync() {
-        HookInit.currentProfile = profile
+        DeviceState.currentProfile = profile
         scope.launch { DataStoreManager.saveProfile(profile) }
     }
 

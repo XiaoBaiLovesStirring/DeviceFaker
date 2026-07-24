@@ -1,6 +1,6 @@
 package com.devicefaker.hooks
 
-import com.devicefaker.HookInit
+import com.devicefaker.DeviceState
 import com.devicefaker.model.SpoofConfig
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedHelpers
@@ -13,14 +13,14 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage
 object SystemPropertyHook {
 
     fun hook(lpparam: XC_LoadPackage.LoadPackageParam, cfg: SpoofConfig) {
-        val p = HookInit.currentProfile
+        val p = DeviceState.currentProfile
 
         hookSystemProperties(lpparam, cfg, p)
         hookAndroidId(lpparam, cfg, p)
         hookOaid(lpparam, cfg, p)
         hookCpuInfo(lpparam, cfg, p)
 
-        HookInit.log("✓ SystemPropertyHook 完成")
+        DeviceState.log("✓ SystemPropertyHook 完成")
     }
 
     // ===== SystemProperties.get() =====
@@ -80,7 +80,7 @@ object SystemPropertyHook {
                 }
             )
         } catch (t: Throwable) {
-            HookInit.log("⚠ SystemProperties: ${t.message}")
+            DeviceState.log("⚠ SystemProperties: ${t.message}")
         }
     }
 
@@ -103,7 +103,7 @@ object SystemPropertyHook {
                 }
             )
         } catch (t: Throwable) {
-            HookInit.log("⚠ Android ID: ${t.message}")
+            DeviceState.log("⚠ Android ID: ${t.message}")
         }
     }
 
@@ -181,7 +181,7 @@ object SystemPropertyHook {
                 Any::class.java,
                 object : XC_MethodHook() {
                     override fun afterHookedMethod(param: MethodHookParam) {
-                        HookInit.log("  [OAID] MSA SDK 已拦截")
+                        DeviceState.log("  [OAID] MSA SDK 已拦截")
                     }
                 }
             )
@@ -224,7 +224,7 @@ object SystemPropertyHook {
                         if (file.absolutePath.contains("/proc/cpuinfo")) {
                             // 不让读真实cpuinfo，用假的替换
                             // 这里我们无法直接替换，但可以记录
-                            HookInit.log("  [CPU] 拦截 /proc/cpuinfo 读取")
+                            DeviceState.log("  [CPU] 拦截 /proc/cpuinfo 读取")
                         }
                     }
                 }

@@ -16,13 +16,13 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.devicefaker.HookInit
+import com.devicefaker.DeviceState
 import com.devicefaker.ui.theme.*
 import kotlinx.coroutines.launch
 
 @Composable
 fun LogScreen() {
-    val logs = remember { derivedStateOf { HookInit.getLogs() } }
+    val logs = remember { derivedStateOf { DeviceState.getLogs() } }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     var autoScroll by remember { mutableStateOf(true) }
@@ -60,7 +60,7 @@ fun LogScreen() {
                             Icon(if (autoScroll) Icons.Filled.VerticalAlignBottom else Icons.Filled.PauseCircle,
                                 "自动滚动", tint = if (autoScroll) NeonGreen else TextSecondary)
                         }
-                        IconButton(onClick = { HookInit.clearLogs() }, modifier = Modifier.size(36.dp)) {
+                        IconButton(onClick = { DeviceState.clearLogs() }, modifier = Modifier.size(36.dp)) {
                             Icon(Icons.Filled.DeleteSweep, "清空", tint = ErrorRed)
                         }
                     }

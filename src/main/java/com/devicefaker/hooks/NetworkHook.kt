@@ -1,6 +1,6 @@
 package com.devicefaker.hooks
 
-import com.devicefaker.HookInit
+import com.devicefaker.DeviceState
 import com.devicefaker.model.NetworkRuleEngine
 import com.devicefaker.model.SpoofConfig
 import de.robv.android.xposed.XC_MethodHook
@@ -20,7 +20,7 @@ object NetworkHook {
 
     fun hook(lpparam: XC_LoadPackage.LoadPackageParam, cfg: SpoofConfig) {
         if (!cfg.networkIntercept) {
-            HookInit.log("○ 网络拦截已禁用")
+            DeviceState.log("○ 网络拦截已禁用")
             return
         }
 
@@ -29,7 +29,7 @@ object NetworkHook {
         hookHttpURLConnection(lpparam)
         hookWebView(lpparam)
 
-        HookInit.log("✓ 网络拦截已激活 (${NetworkRuleEngine.getRules().size} 条规则)")
+        DeviceState.log("✓ 网络拦截已激活 (${NetworkRuleEngine.getRules().size} 条规则)")
     }
 
     // ===== OkHttp RealCall.execute() — 同步请求 =====
@@ -49,7 +49,7 @@ object NetworkHook {
 
                             // 检查是否需要阻断
                             if (NetworkRuleEngine.shouldBlock(url)) {
-                                HookInit.log("  [BLOCK] $method $url")
+                                DeviceState.log("  [BLOCK] $method $url")
                                 // 抛异常阻断请求
                                 throw java.io.IOException("Request blocked by DeviceFaker")
                             }
@@ -57,7 +57,7 @@ object NetworkHook {
                             // 检查是否需要重定向
                             val redirectUrl = NetworkRuleEngine.applyRedirect(url)
                             if (redirectUrl != null) {
-                                HookInit.log("  [REDIRECT] $url → $redirectUrl")
+                                DeviceState.log("  [REDIRECT] $url → $redirectUrl")
                                 // 构建新 URL 的 Request
                                 val okHttpUrlClass = XposedHelpers.findClass("okhttp3.HttpUrl", lpparam.classLoader)
                                 val newHttpUrl = XposedHelpers.callStaticMethod(okHttpUrlClass, "parse", redirectUrl)
@@ -82,7 +82,7 @@ object NetworkHook {
 
                             val tampered = NetworkRuleEngine.applyResponseTampering(url)
                             if (tampered != null) {
-                                HookInit.log("  [TAMPER] $url → ${tampered.statusCode} (${tampered.body.length} bytes)")
+                                DeviceState.log("  [TAMPER] $url → ${tampered.statusCode} (${tampered.body.length} bytes)")
 
                                 val mediaTypeClass = XposedHelpers.findClass("okhttp3.MediaType", lpparam.classLoader)
                                 val mediaType = XposedHelpers.callStaticMethod(mediaTypeClass, "parse", tampered.contentType)
@@ -100,9 +100,9 @@ object NetworkHook {
                     }
                 }
             )
-            HookInit.log("  ✓ OkHttp execute() 已拦截")
+            DeviceState.log("  ✓ OkHttp execute() 已拦截")
         } catch (t: Throwable) {
-            HookInit.log("  ⚠ OkHttp execute: ${t.message}")
+            DeviceState.log("  ⚠ OkHttp execute: ${t.message}")
         }
     }
 
@@ -123,7 +123,7 @@ object NetworkHook {
                             // 检查重定向
                             val redirectUrl = NetworkRuleEngine.applyRedirect(url)
                             if (redirectUrl != null) {
-                                HookInit.log("  [ASYNC REDIRECT] $url → $redirectUrl")
+                                DeviceState.log("  [ASYNC REDIRECT] $url → $redirectUrl")
                                 val okHttpUrlClass = XposedHelpers.findClass("okhttp3.HttpUrl", lpparam.classLoader)
                                 val newHttpUrl = XposedHelpers.callStaticMethod(okHttpUrlClass, "parse", redirectUrl)
                                 val newRequest = XposedHelpers.callMethod(originalRequest, "newBuilder")
@@ -135,9 +135,9 @@ object NetworkHook {
                     }
                 }
             )
-            HookInit.log("  ✓ OkHttp enqueue() 已拦截")
+            DeviceState.log("  ✓ OkHttp enqueue() 已拦截")
         } catch (t: Throwable) {
-            HookInit.log("  ⚠ OkHttp enqueue: ${t.message}")
+            DeviceState.log("  ⚠ OkHttp enqueue: ${t.message}")
         }
     }
 
@@ -156,7 +156,7 @@ object NetworkHook {
 
                             val tampered = NetworkRuleEngine.applyResponseTampering(url)
                             if (tampered != null) {
-                                HookInit.log("  [HttpURL TAMPER] $url → ${tampered.statusCode}")
+                                DeviceState.log("  [HttpURL TAMPER] $url → ${tampered.statusCode}")
                                 param.result = ByteArrayInputStream(tampered.body.toByteArray())
                             }
                         } catch (_: Throwable) {}
@@ -164,7 +164,7 @@ object NetworkHook {
                 }
             )
         } catch (t: Throwable) {
-            HookInit.log("  ⚠ HttpURL getInputStream: ${t.message}")
+            DeviceState.log("  ⚠ HttpURL getInputStream: ${t.message}")
         }
 
         // Hook getResponseCode() — 篡改状态码
@@ -186,10 +186,10 @@ object NetworkHook {
                 }
             )
         } catch (t: Throwable) {
-            HookInit.log("  ⚠ HttpURL getResponseCode: ${t.message}")
+            DeviceState.log("  ⚠ HttpURL getResponseCode: ${t.message}")
         }
 
-        HookInit.log("  ✓ HttpURLConnection 已拦截")
+        DeviceState.log("  ✓ HttpURLConnection 已拦截")
     }
 
     // ===== WebView 拦截 =====
@@ -209,7 +209,7 @@ object NetworkHook {
                             val url = XposedHelpers.callMethod(request, "getUrl").toString()
                             val tampered = NetworkRuleEngine.applyResponseTampering(url)
                             if (tampered != null) {
-                                HookInit.log("  [WebView TAMPER] $url")
+                                DeviceState.log("  [WebView TAMPER] $url")
                                 val mimeType = when {
                                     url.contains(".json") -> "application/json"
                                     url.contains(".html") -> "text/html"
@@ -243,7 +243,7 @@ object NetworkHook {
                         val url = param.args[0] as String
                         val redirectUrl = NetworkRuleEngine.applyRedirect(url)
                         if (redirectUrl != null) {
-                            HookInit.log("  [WebView REDIRECT] $url → $redirectUrl")
+                            DeviceState.log("  [WebView REDIRECT] $url → $redirectUrl")
                             param.args[0] = redirectUrl
                         }
                     }
@@ -251,6 +251,6 @@ object NetworkHook {
             )
         } catch (_: Throwable) {}
 
-        HookInit.log("  ✓ WebView 已拦截")
+        DeviceState.log("  ✓ WebView 已拦截")
     }
 }
