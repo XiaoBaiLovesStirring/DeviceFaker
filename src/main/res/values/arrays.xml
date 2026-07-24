@@ -1,7 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string-array name="xposed_scope">
-        <item>com.immomo.miraimind</item>
+        <!-- 测试工具 -->
         <item>com.devicechecker</item>
+        <!-- 社交类 -->
+        <item>com.immomo.miraimind</item>
+        <item>com.tencent.mm</item>
+        <item>com.tencent.mobileqq</item>
+        <item>com.ss.android.ugc.aweme</item>
+        <item>com.xingin.xhs</item>
+        <!-- 浏览器 -->
+        <item>com.android.chrome</item>
+        <item>com.UCMobile</item>
+        <item>com.quark.browser</item>
+        <!-- 购物类 -->
+        <item>com.taobao.taobao</item>
+        <item>com.jingdong.app.mall</item>
+        <item>com.xunmeng.pinduoduo</item>
+        <!-- 工具类 -->
+        <item>com.devicefaker</item>
     </string-array>
 </resources>

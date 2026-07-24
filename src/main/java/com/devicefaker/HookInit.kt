@@ -35,7 +35,7 @@ class HookInit : IXposedHookLoadPackage {
         val p = fakeProfile
 
         XposedBridge.log("=".repeat(48))
-        XposedBridge.log("DeviceFaker Pro v2.2 (API 102)")
+        XposedBridge.log("DeviceFaker Pro v2.3 (API 102)")
         XposedBridge.log("目标进程: ${lpparam.packageName}")
         XposedBridge.log("-".repeat(48))
         XposedBridge.log("SN:    ${p.serialNumber}")
@@ -112,39 +112,72 @@ class HookInit : IXposedHookLoadPackage {
         }
     }
 
+    // 使用 Unsafe 直接修改静态字段（最可靠的方式）
+    private var unsafeObj: Any? = null
+    private var putObjectMethod: java.lang.reflect.Method? = null
+    private var objectFieldOffsetMethod: java.lang.reflect.Method? = null
+
+    private fun initUnsafe() {
+        if (unsafeObj != null) return
+        try {
+            val unsafeClass = Class.forName("sun.misc.Unsafe")
+            val theUnsafe = unsafeClass.getDeclaredField("theUnsafe")
+            theUnsafe.isAccessible = true
+            unsafeObj = theUnsafe.get(null)
+            putObjectMethod = unsafeClass.getDeclaredMethod(
+                "putObject", Any::class.java, Long::class.javaPrimitiveType, Any::class.java
+            )
+            objectFieldOffsetMethod = unsafeClass.getDeclaredMethod(
+                "objectFieldOffset", java.lang.reflect.Field::class.java
+            )
+            XposedBridge.log("  Unsafe 初始化成功")
+        } catch (e: Throwable) {
+            XposedBridge.log("  [WARN] Unsafe 初始化失败: ${e.message}")
+        }
+    }
+
     private fun setBuildField(clazz: Class<*>, fieldName: String, value: Any) {
-        // 策略1: XposedHelpers.setStaticObjectField (Unsafe)
+        initUnsafe()
+
+        if (unsafeObj != null && putObjectMethod != null && objectFieldOffsetMethod != null) {
+            try {
+                val field = clazz.getDeclaredField(fieldName)
+                val offset = objectFieldOffsetMethod!!.invoke(unsafeObj, field) as Long
+                putObjectMethod!!.invoke(unsafeObj, clazz, offset, value)
+                return
+            } catch (e: Throwable) {
+                XposedBridge.log("  [WARN] Unsafe方式失败: $fieldName → ${e.message}")
+            }
+        }
+
+        // 兜底策略1: XposedHelpers.setStaticObjectField
         try {
             XposedHelpers.setStaticObjectField(clazz, fieldName, value)
             return
         } catch (e1: Throwable) {
-            XposedBridge.log("  [WARN] 策略1失败: $fieldName → ${e1.message}")
+            XposedBridge.log("  [WARN] XposedHelper失败: $fieldName → ${e1.message}")
         }
 
-        // 策略2: 反射 + 去 final
+        // 兜底策略2: 反射 + 去 final
         try {
             val field = clazz.getDeclaredField(fieldName)
             field.isAccessible = true
-
             val modifiersField = java.lang.reflect.Field::class.java.getDeclaredField("modifiers")
             modifiersField.isAccessible = true
             modifiersField.setInt(field, field.modifiers and java.lang.reflect.Modifier.FINAL.inv())
-
             field.set(null, value)
             return
         } catch (e2: Throwable) {
-            XposedBridge.log("  [WARN] 策略2失败: $fieldName → ${e2.message}")
+            XposedBridge.log("  [WARN] 反射去final失败: $fieldName → ${e2.message}")
         }
 
-        // 策略3: 通过 accessFlags (Android 10+)
+        // 兜底策略3: accessFlags (Android 10+)
         try {
             val field = clazz.getDeclaredField(fieldName)
             field.isAccessible = true
-
             val accessFlagsField = java.lang.reflect.Field::class.java.getDeclaredField("accessFlags")
             accessFlagsField.isAccessible = true
             accessFlagsField.setInt(field, field.modifiers and java.lang.reflect.Modifier.FINAL.inv())
-
             field.set(null, value)
         } catch (e3: Throwable) {
             XposedBridge.log("  [ERR] 所有策略都失败: $fieldName → ${e3.message}")
